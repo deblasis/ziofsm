@@ -647,3 +647,29 @@ test "FSM all states reachable" {
     _ = fsm.process(.finish);
     try std.testing.expectEqual(State.end, fsm.currentState());
 }
+
+test "FSM single state single event" {
+    const State = enum { only };
+    const Event = enum { trigger };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = State.only, .event = Event.trigger, .to = State.only },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.only);
+    try std.testing.expect(fsm.process(.trigger));
+    try std.testing.expectEqual(State.only, fsm.currentState());
+}
+
+test "FSM state after many invalid events unchanged" {
+    const State = enum { a, b };
+    const Event = enum { go, stop, pause };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = State.a, .event = Event.go, .to = State.b },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    _ = fsm.process(.stop);
+    _ = fsm.process(.pause);
+    _ = fsm.process(.stop);
+    try std.testing.expectEqual(State.a, fsm.currentState());
+}
