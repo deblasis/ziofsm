@@ -41,6 +41,16 @@ zig build test          # Run 37 tests
 zig build run-example   # Run example
 ```
 
+## Example output
+
+```
+$ zig build run-example
+State: .menu
+After start: .playing
+After die: .game_over
+After reset: .menu
+```
+
 ## API
 
 ### Transition(State, Event)

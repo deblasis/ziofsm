@@ -687,3 +687,22 @@ test "FSM history tracks transitions" {
     _ = fsm.process(.go);
     try std.testing.expectEqual(State.c, fsm.currentState());
 }
+
+test "example: menu→playing→game_over→menu" {
+    const State = enum { menu, playing, game_over };
+    const Event = enum { start, die, reset };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = .menu, .event = .start, .to = .playing },
+        .{ .from = .playing, .event = .die, .to = .game_over },
+        .{ .from = .game_over, .event = .reset, .to = .menu },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.menu);
+    try std.testing.expectEqual(State.menu, fsm.currentState());
+    _ = fsm.process(.start);
+    try std.testing.expectEqual(State.playing, fsm.currentState());
+    _ = fsm.process(.die);
+    try std.testing.expectEqual(State.game_over, fsm.currentState());
+    _ = fsm.process(.reset);
+    try std.testing.expectEqual(State.menu, fsm.currentState());
+}
