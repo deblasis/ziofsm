@@ -506,3 +506,29 @@ test "FSM process returns true only on valid transition" {
     try std.testing.expect(fsm.process(.lock));
     try std.testing.expect(!fsm.process(.lock)); // already locked
 }
+
+test "FSM canProcess after forceTransition" {
+    const State = enum { a, b };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = State.a, .event = Event.go, .to = State.b },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    fsm.forceTransition(.b);
+    try std.testing.expect(!fsm.canProcess(.go)); // no transition from b
+}
+
+test "FSM process preserves state on invalid event" {
+    const State = enum { idle, running };
+    const Event = enum { start, stop };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = State.idle, .event = Event.start, .to = State.running },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.idle);
+    _ = fsm.process(.start);
+    const ok = fsm.process(.start); // no transition from running
+    try std.testing.expect(!ok);
+    try std.testing.expectEqual(State.running, fsm.currentState());
+}
