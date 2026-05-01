@@ -718,3 +718,24 @@ test "example: menu→playing→game_over→menu" {
     _ = fsm.process(.reset);
     try std.testing.expectEqual(State.menu, fsm.currentState());
 }
+
+test "FSM with many states" {
+    const State = enum { s0, s1, s2, s3, s4, s5 };
+    const Event = enum { next, prev };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = .s0, .event = .next, .to = .s1 },
+        .{ .from = .s1, .event = .next, .to = .s2 },
+        .{ .from = .s2, .event = .next, .to = .s3 },
+        .{ .from = .s3, .event = .next, .to = .s4 },
+        .{ .from = .s4, .event = .next, .to = .s5 },
+        .{ .from = .s5, .event = .prev, .to = .s0 },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.s0);
+    inline for (.{ .next, .next, .next, .next, .next }) |ev| {
+        _ = fsm.process(ev);
+    }
+    try std.testing.expectEqual(State.s5, fsm.currentState());
+    _ = fsm.process(.prev);
+    try std.testing.expectEqual(State.s0, fsm.currentState());
+}
