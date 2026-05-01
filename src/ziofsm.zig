@@ -532,3 +532,36 @@ test "FSM process preserves state on invalid event" {
     try std.testing.expect(!ok);
     try std.testing.expectEqual(State.running, fsm.currentState());
 }
+
+test "FSM elevator state machine" {
+    const State = enum { door_open, door_closed, moving_up, moving_down };
+    const Event = enum { close_door, open_door, reach_floor, request_up, request_down };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.door_open, .event = Event.close_door, .to = State.door_closed },
+        .{ .from = State.door_closed, .event = Event.request_up, .to = State.moving_up },
+        .{ .from = State.door_closed, .event = Event.request_down, .to = State.moving_down },
+        .{ .from = State.moving_up, .event = Event.reach_floor, .to = State.door_open },
+        .{ .from = State.moving_down, .event = Event.reach_floor, .to = State.door_open },
+        .{ .from = State.door_open, .event = .open_door, .to = State.door_open },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.door_open);
+    _ = fsm.process(.close_door);
+    try std.testing.expectEqual(State.door_closed, fsm.currentState());
+    _ = fsm.process(.request_up);
+    try std.testing.expectEqual(State.moving_up, fsm.currentState());
+    _ = fsm.process(.reach_floor);
+    try std.testing.expectEqual(State.door_open, fsm.currentState());
+}
+
+test "FSM no transitions matches empty array" {
+    const State = enum { a };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+    const transitions = [_]T{};
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    try std.testing.expect(!fsm.process(.go));
+    try std.testing.expect(!fsm.canProcess(.go));
+}
