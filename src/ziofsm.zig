@@ -256,3 +256,65 @@ test "FSM multiple events from same state" {
     try std.testing.expect(fsm.process(.load_game));
     try std.testing.expect(fsm.process(.settings));
 }
+
+test "FSM init without callbacks" {
+    const State = enum { a, b };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.a, .event = Event.go, .to = State.b },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    try std.testing.expectEqual(State.a, fsm.currentState());
+    try std.testing.expect(fsm.on_enter == null);
+    try std.testing.expect(fsm.on_exit == null);
+}
+
+test "FSM diamond state machine" {
+    const State = enum { start, left, right, end };
+    const Event = enum { go_left, go_right, merge };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.start, .event = Event.go_left, .to = State.left },
+        .{ .from = State.start, .event = Event.go_right, .to = State.right },
+        .{ .from = State.left, .event = Event.merge, .to = State.end },
+        .{ .from = State.right, .event = Event.merge, .to = State.end },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.start);
+    
+    // Go left path
+    try std.testing.expect(fsm.process(.go_left));
+    try std.testing.expectEqual(State.left, fsm.currentState());
+    try std.testing.expect(fsm.process(.merge));
+    try std.testing.expectEqual(State.end, fsm.currentState());
+}
+
+test "FSM forceTransition same state" {
+    const State = enum { a, b };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{};
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    fsm.forceTransition(.a); // force to same state
+    try std.testing.expectEqual(State.a, fsm.currentState());
+}
+
+test "FSM canProcess all invalid from terminal state" {
+    const State = enum { alive, dead };
+    const Event = enum { live, die };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.alive, .event = Event.die, .to = State.dead },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.alive);
+    _ = fsm.process(.die);
+    try std.testing.expect(!fsm.canProcess(.die));
+    try std.testing.expect(!fsm.canProcess(.live));
+}
