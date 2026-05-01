@@ -565,3 +565,47 @@ test "FSM no transitions matches empty array" {
     try std.testing.expect(!fsm.process(.go));
     try std.testing.expect(!fsm.canProcess(.go));
 }
+
+test "FSM enemy AI: patrol, alert, chase, attack" {
+    const State = enum { patrol, alert, chase, attack, dead };
+    const Event = enum { see_player, lose_player, in_range, out_range, killed, respawn };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.patrol, .event = Event.see_player, .to = State.alert },
+        .{ .from = State.alert, .event = Event.see_player, .to = State.chase },
+        .{ .from = State.chase, .event = Event.in_range, .to = State.attack },
+        .{ .from = State.attack, .event = Event.out_range, .to = State.chase },
+        .{ .from = State.chase, .event = Event.lose_player, .to = State.patrol },
+        .{ .from = State.attack, .event = Event.lose_player, .to = State.patrol },
+        .{ .from = State.patrol, .event = Event.killed, .to = State.dead },
+        .{ .from = State.dead, .event = Event.respawn, .to = State.patrol },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.patrol);
+    _ = fsm.process(.see_player); // patrol → alert
+    try std.testing.expectEqual(State.alert, fsm.currentState());
+    _ = fsm.process(.see_player); // alert → chase
+    try std.testing.expectEqual(State.chase, fsm.currentState());
+    _ = fsm.process(.in_range);   // chase → attack
+    try std.testing.expectEqual(State.attack, fsm.currentState());
+    _ = fsm.process(.out_range);  // attack → chase
+    try std.testing.expectEqual(State.chase, fsm.currentState());
+    _ = fsm.process(.lose_player); // chase → patrol
+    try std.testing.expectEqual(State.patrol, fsm.currentState());
+}
+
+test "FSM forceTransition to dead then respawn" {
+    const State = enum { alive, dead };
+    const Event = enum { die, respawn };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = State.alive, .event = Event.die, .to = State.dead },
+        .{ .from = State.dead, .event = Event.respawn, .to = State.alive },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.alive);
+    fsm.forceTransition(.dead);
+    try std.testing.expect(fsm.canProcess(.respawn));
+    _ = fsm.process(.respawn);
+    try std.testing.expectEqual(State.alive, fsm.currentState());
+}
