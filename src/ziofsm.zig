@@ -673,3 +673,17 @@ test "FSM state after many invalid events unchanged" {
     _ = fsm.process(.stop);
     try std.testing.expectEqual(State.a, fsm.currentState());
 }
+
+test "FSM history tracks transitions" {
+    const State = enum { a, b, c };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = State.a, .event = Event.go, .to = State.b },
+        .{ .from = State.b, .event = Event.go, .to = State.c },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    _ = fsm.process(.go);
+    _ = fsm.process(.go);
+    try std.testing.expectEqual(State.c, fsm.currentState());
+}
