@@ -5,8 +5,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v1
-        with: { version: '0.16.0' }
+      - name: Install Zig
+        run: |
+          curl -L https://ziglang.org/download/0.16.0/zig-x86_64-linux-0.16.0.tar.xz | tar xJ
+          echo "$PWD/zig-x86_64-linux-0.16.0" >> $GITHUB_PATH
       - run: zig fmt --check src/ examples/
       - run: zig build test
       - run: zig build run-example
