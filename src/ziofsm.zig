@@ -414,3 +414,45 @@ test "FSM multiple events to same target" {
     try std.testing.expect(fsm.process(.phone_call));
     try std.testing.expectEqual(State.paused, fsm.currentState());
 }
+
+test "FSM transition order matters" {
+    const State = enum { a, b };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.a, .event = Event.go, .to = State.b },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    try std.testing.expect(fsm.process(.go));
+    try std.testing.expectEqual(State.b, fsm.currentState());
+    // No transition from b
+    try std.testing.expect(!fsm.process(.go));
+}
+
+test "FSM forceTransition to same state" {
+    const State = enum { idle, active };
+    const Event = enum { toggle };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.idle, .event = Event.toggle, .to = State.active },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.idle);
+    fsm.forceTransition(.idle);
+    try std.testing.expectEqual(State.idle, fsm.currentState());
+    // Still can transition
+    try std.testing.expect(fsm.process(.toggle));
+}
+
+test "FSM Transition type has correct fields" {
+    const State = enum { on, off };
+    const Event = enum { flip };
+    const T = Transition(State, Event);
+    const t = T{ .from = .on, .event = .flip, .to = .off };
+    try std.testing.expectEqual(State.on, t.from);
+    try std.testing.expectEqual(Event.flip, t.event);
+    try std.testing.expectEqual(State.off, t.to);
+}
