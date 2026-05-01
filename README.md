@@ -37,7 +37,7 @@ const can_jump = fsm.canProcess(.jump);
 ```
 
 ```bash
-zig build test          # Run 37 tests
+zig build test          # Run 39 tests
 zig build run-example   # Run example
 ```
 
