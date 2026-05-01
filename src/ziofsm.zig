@@ -161,3 +161,98 @@ test "FSM with callbacks" {
     try std.testing.expect(fsm.process(.toggle));
     try std.testing.expectEqual(State.off, fsm.currentState());
 }
+
+test "FSM no transitions defined" {
+    const State = enum { a, b };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{};
+
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    try std.testing.expect(!fsm.process(.go));
+    try std.testing.expectEqual(State.a, fsm.currentState());
+}
+
+test "FSM single state loop" {
+    const State = enum { idle };
+    const Event = enum { tick };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.idle, .event = Event.tick, .to = State.idle },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.idle);
+    try std.testing.expect(fsm.process(.tick));
+    try std.testing.expectEqual(State.idle, fsm.currentState());
+}
+
+test "FSM process returns false for invalid event" {
+    const State = enum { idle, running };
+    const Event = enum { start, stop, pause };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.idle, .event = Event.start, .to = State.running },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.idle);
+    try std.testing.expect(!fsm.process(.stop));
+    try std.testing.expect(!fsm.process(.pause));
+    try std.testing.expect(fsm.process(.start));
+}
+
+test "FSM forceTransition with callbacks" {
+    const State = enum { a, b };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{};
+
+    var callback_count: u32 = 0;
+    _ = &callback_count;
+
+    const Ctx = struct {
+        fn onEnter(s: State) void { _ = s; }
+        fn onExit(s: State) void { _ = s; }
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .initWithCallbacks(.a, Ctx.onEnter, Ctx.onExit);
+    fsm.forceTransition(.b);
+    try std.testing.expectEqual(State.b, fsm.currentState());
+}
+
+test "FSM canProcess after transition" {
+    const State = enum { idle, active, done };
+    const Event = enum { start, finish };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.idle, .event = Event.start, .to = State.active },
+        .{ .from = State.active, .event = Event.finish, .to = State.done },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.idle);
+    try std.testing.expect(!fsm.canProcess(.finish));
+    _ = fsm.process(.start);
+    try std.testing.expect(fsm.canProcess(.finish));
+    try std.testing.expect(!fsm.canProcess(.start));
+}
+
+test "FSM multiple events from same state" {
+    const State = enum { menu };
+    const Event = enum { new_game, load_game, settings };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.menu, .event = Event.new_game, .to = State.menu },
+        .{ .from = State.menu, .event = Event.load_game, .to = State.menu },
+        .{ .from = State.menu, .event = Event.settings, .to = State.menu },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.menu);
+    try std.testing.expect(fsm.process(.new_game));
+    try std.testing.expect(fsm.process(.load_game));
+    try std.testing.expect(fsm.process(.settings));
+}
