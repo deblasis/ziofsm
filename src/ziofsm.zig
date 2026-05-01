@@ -151,8 +151,12 @@ test "FSM with callbacks" {
     _ = &transition_count;
 
     const Ctx = struct {
-        fn onEnter(s: State) void { _ = s; }
-        fn onExit(s: State) void { _ = s; }
+        fn onEnter(s: State) void {
+            _ = s;
+        }
+        fn onExit(s: State) void {
+            _ = s;
+        }
     };
 
     var fsm: FSM(State, Event, &transitions) = .initWithCallbacks(.off, Ctx.onEnter, Ctx.onExit);
@@ -214,8 +218,12 @@ test "FSM forceTransition with callbacks" {
     _ = &callback_count;
 
     const Ctx = struct {
-        fn onEnter(s: State) void { _ = s; }
-        fn onExit(s: State) void { _ = s; }
+        fn onEnter(s: State) void {
+            _ = s;
+        }
+        fn onExit(s: State) void {
+            _ = s;
+        }
     };
 
     var fsm: FSM(State, Event, &transitions) = .initWithCallbacks(.a, Ctx.onEnter, Ctx.onExit);
@@ -285,7 +293,7 @@ test "FSM diamond state machine" {
     };
 
     var fsm: FSM(State, Event, &transitions) = .init(.start);
-    
+
     // Go left path
     try std.testing.expect(fsm.process(.go_left));
     try std.testing.expectEqual(State.left, fsm.currentState());
@@ -365,8 +373,12 @@ test "FSM initWithCallbacks stores callbacks" {
     const transitions = [_]T{};
 
     const Ctx = struct {
-        fn onEnter(s: State) void { _ = s; }
-        fn onExit(s: State) void { _ = s; }
+        fn onEnter(s: State) void {
+            _ = s;
+        }
+        fn onExit(s: State) void {
+            _ = s;
+        }
     };
 
     const fsm = FSM(State, Event, &transitions).initWithCallbacks(.a, Ctx.onEnter, Ctx.onExit);
@@ -403,14 +415,14 @@ test "FSM multiple events to same target" {
     };
 
     var fsm: FSM(State, Event, &transitions) = .init(.playing);
-    
+
     // All three events pause the game
     try std.testing.expect(fsm.process(.pause_button));
     try std.testing.expectEqual(State.paused, fsm.currentState());
-    
+
     try std.testing.expect(fsm.process(.escape));
     try std.testing.expectEqual(State.playing, fsm.currentState());
-    
+
     try std.testing.expect(fsm.process(.phone_call));
     try std.testing.expectEqual(State.paused, fsm.currentState());
 }
@@ -587,9 +599,9 @@ test "FSM enemy AI: patrol, alert, chase, attack" {
     try std.testing.expectEqual(State.alert, fsm.currentState());
     _ = fsm.process(.see_player); // alert → chase
     try std.testing.expectEqual(State.chase, fsm.currentState());
-    _ = fsm.process(.in_range);   // chase → attack
+    _ = fsm.process(.in_range); // chase → attack
     try std.testing.expectEqual(State.attack, fsm.currentState());
-    _ = fsm.process(.out_range);  // attack → chase
+    _ = fsm.process(.out_range); // attack → chase
     try std.testing.expectEqual(State.chase, fsm.currentState());
     _ = fsm.process(.lose_player); // chase → patrol
     try std.testing.expectEqual(State.patrol, fsm.currentState());
@@ -624,7 +636,7 @@ test "FSM state is always a valid enum value" {
 
     var fsm: FSM(State, Event, &transitions) = .init(.a);
     // Process many events — state should always be valid
-    inline for (.{Event.next, Event.next, Event.next, Event.back, Event.next, Event.next}) |ev| {
+    inline for (.{ Event.next, Event.next, Event.next, Event.back, Event.next, Event.next }) |ev| {
         _ = fsm.process(ev);
         try std.testing.expect(fsm.currentState() == .a or
             fsm.currentState() == .b or
