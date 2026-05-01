@@ -373,3 +373,44 @@ test "FSM initWithCallbacks stores callbacks" {
     try std.testing.expect(fsm.on_enter != null);
     try std.testing.expect(fsm.on_exit != null);
 }
+
+test "FSM self-transition" {
+    const State = enum { idle };
+    const Event = enum { tick };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.idle, .event = Event.tick, .to = State.idle },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.idle);
+    try std.testing.expect(fsm.process(.tick));
+    try std.testing.expectEqual(State.idle, fsm.currentState());
+    try std.testing.expect(fsm.process(.tick)); // self-transition always valid
+}
+
+test "FSM multiple events to same target" {
+    const State = enum { playing, paused };
+    const Event = enum { pause_button, escape, phone_call };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.playing, .event = Event.pause_button, .to = State.paused },
+        .{ .from = State.playing, .event = Event.escape, .to = State.paused },
+        .{ .from = State.playing, .event = Event.phone_call, .to = State.paused },
+        .{ .from = State.paused, .event = Event.pause_button, .to = State.playing },
+        .{ .from = State.paused, .event = Event.escape, .to = State.playing },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.playing);
+    
+    // All three events pause the game
+    try std.testing.expect(fsm.process(.pause_button));
+    try std.testing.expectEqual(State.paused, fsm.currentState());
+    
+    try std.testing.expect(fsm.process(.escape));
+    try std.testing.expectEqual(State.playing, fsm.currentState());
+    
+    try std.testing.expect(fsm.process(.phone_call));
+    try std.testing.expectEqual(State.paused, fsm.currentState());
+}
