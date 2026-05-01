@@ -609,3 +609,41 @@ test "FSM forceTransition to dead then respawn" {
     _ = fsm.process(.respawn);
     try std.testing.expectEqual(State.alive, fsm.currentState());
 }
+
+test "FSM state is always a valid enum value" {
+    const State = enum { a, b, c, d };
+    const Event = enum { next, back };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.a, .event = Event.next, .to = State.b },
+        .{ .from = State.b, .event = Event.next, .to = State.c },
+        .{ .from = State.c, .event = Event.next, .to = State.d },
+        .{ .from = State.d, .event = Event.back, .to = State.a },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    // Process many events — state should always be valid
+    inline for (.{Event.next, Event.next, Event.next, Event.back, Event.next, Event.next}) |ev| {
+        _ = fsm.process(ev);
+        try std.testing.expect(fsm.currentState() == .a or
+            fsm.currentState() == .b or
+            fsm.currentState() == .c or
+            fsm.currentState() == .d);
+    }
+}
+
+test "FSM all states reachable" {
+    const State = enum { start, middle, end };
+    const Event = enum { go, finish };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = State.start, .event = Event.go, .to = State.middle },
+        .{ .from = State.middle, .event = Event.finish, .to = State.end },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.start);
+    _ = fsm.process(.go);
+    try std.testing.expectEqual(State.middle, fsm.currentState());
+    _ = fsm.process(.finish);
+    try std.testing.expectEqual(State.end, fsm.currentState());
+}
