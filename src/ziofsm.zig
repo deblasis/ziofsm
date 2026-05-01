@@ -739,3 +739,29 @@ test "FSM with many states" {
     _ = fsm.process(.prev);
     try std.testing.expectEqual(State.s0, fsm.currentState());
 }
+
+test "guard AI: patrol, spot player, chase, lose, return" {
+    const State = enum { patrol_a, patrol_b, alert, chase, return_to_patrol };
+    const Event = enum { reach_b, reach_a, spot, lose, return_arrived };
+    const T = Transition(State, Event);
+    const transitions = [_]T{
+        .{ .from = .patrol_a, .event = .reach_b, .to = .patrol_b },
+        .{ .from = .patrol_b, .event = .reach_a, .to = .patrol_a },
+        .{ .from = .patrol_a, .event = .spot, .to = .alert },
+        .{ .from = .patrol_b, .event = .spot, .to = .alert },
+        .{ .from = .alert, .event = .spot, .to = .chase },
+        .{ .from = .chase, .event = .lose, .to = .return_to_patrol },
+        .{ .from = .return_to_patrol, .event = .return_arrived, .to = .patrol_a },
+    };
+    var fsm: FSM(State, Event, &transitions) = .init(.patrol_a);
+    _ = fsm.process(.reach_b);
+    try std.testing.expectEqual(State.patrol_b, fsm.currentState());
+    _ = fsm.process(.spot);
+    try std.testing.expectEqual(State.alert, fsm.currentState());
+    _ = fsm.process(.spot);
+    try std.testing.expectEqual(State.chase, fsm.currentState());
+    _ = fsm.process(.lose);
+    try std.testing.expectEqual(State.return_to_patrol, fsm.currentState());
+    _ = fsm.process(.return_arrived);
+    try std.testing.expectEqual(State.patrol_a, fsm.currentState());
+}
