@@ -456,3 +456,53 @@ test "FSM Transition type has correct fields" {
     try std.testing.expectEqual(Event.flip, t.event);
     try std.testing.expectEqual(State.off, t.to);
 }
+
+test "FSM patrol pattern" {
+    const State = enum { patrol_forward, patrol_back, chase };
+    const Event = enum { reached_end, reached_start, spotted, lost };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.patrol_forward, .event = Event.reached_end, .to = State.patrol_back },
+        .{ .from = State.patrol_back, .event = Event.reached_start, .to = State.patrol_forward },
+        .{ .from = State.patrol_forward, .event = Event.spotted, .to = State.chase },
+        .{ .from = State.patrol_back, .event = Event.spotted, .to = State.chase },
+        .{ .from = State.chase, .event = Event.lost, .to = State.patrol_forward },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.patrol_forward);
+    _ = fsm.process(.reached_end);
+    try std.testing.expectEqual(State.patrol_back, fsm.currentState());
+    _ = fsm.process(.spotted);
+    try std.testing.expectEqual(State.chase, fsm.currentState());
+    _ = fsm.process(.lost);
+    try std.testing.expectEqual(State.patrol_forward, fsm.currentState());
+}
+
+test "FSM state enum equality" {
+    const State = enum { a, b, c };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+    const transitions = [_]T{};
+    var fsm: FSM(State, Event, &transitions) = .init(.a);
+    try std.testing.expect(fsm.currentState() == State.a);
+    fsm.forceTransition(.c);
+    try std.testing.expect(fsm.currentState() == State.c);
+}
+
+test "FSM process returns true only on valid transition" {
+    const State = enum { locked, unlocked };
+    const Event = enum { unlock, lock };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.locked, .event = Event.unlock, .to = State.unlocked },
+        .{ .from = State.unlocked, .event = Event.lock, .to = State.locked },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.locked);
+    try std.testing.expect(fsm.process(.unlock));
+    try std.testing.expect(!fsm.process(.unlock)); // already unlocked
+    try std.testing.expect(fsm.process(.lock));
+    try std.testing.expect(!fsm.process(.lock)); // already locked
+}
