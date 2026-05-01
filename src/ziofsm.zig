@@ -318,3 +318,58 @@ test "FSM canProcess all invalid from terminal state" {
     try std.testing.expect(!fsm.canProcess(.die));
     try std.testing.expect(!fsm.canProcess(.live));
 }
+
+test "FSM process returns false after terminal state" {
+    const State = enum { alive, dead };
+    const Event = enum { die };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.alive, .event = Event.die, .to = State.dead },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.alive);
+    try std.testing.expect(fsm.process(.die));
+    try std.testing.expect(!fsm.process(.die)); // no transition from dead
+    try std.testing.expectEqual(State.dead, fsm.currentState());
+}
+
+test "FSM large state machine" {
+    const State = enum { s0, s1, s2, s3, s4, s5 };
+    const Event = enum { next, reset };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{
+        .{ .from = State.s0, .event = Event.next, .to = State.s1 },
+        .{ .from = State.s1, .event = Event.next, .to = State.s2 },
+        .{ .from = State.s2, .event = Event.next, .to = State.s3 },
+        .{ .from = State.s3, .event = Event.next, .to = State.s4 },
+        .{ .from = State.s4, .event = Event.next, .to = State.s5 },
+        .{ .from = State.s5, .event = Event.reset, .to = State.s0 },
+    };
+
+    var fsm: FSM(State, Event, &transitions) = .init(.s0);
+    for (0..5) |_| {
+        try std.testing.expect(fsm.process(.next));
+    }
+    try std.testing.expectEqual(State.s5, fsm.currentState());
+    try std.testing.expect(fsm.process(.reset));
+    try std.testing.expectEqual(State.s0, fsm.currentState());
+}
+
+test "FSM initWithCallbacks stores callbacks" {
+    const State = enum { a, b };
+    const Event = enum { go };
+    const T = Transition(State, Event);
+
+    const transitions = [_]T{};
+
+    const Ctx = struct {
+        fn onEnter(s: State) void { _ = s; }
+        fn onExit(s: State) void { _ = s; }
+    };
+
+    const fsm = FSM(State, Event, &transitions).initWithCallbacks(.a, Ctx.onEnter, Ctx.onExit);
+    try std.testing.expect(fsm.on_enter != null);
+    try std.testing.expect(fsm.on_exit != null);
+}
